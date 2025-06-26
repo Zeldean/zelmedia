@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V2.6 (Dry‑Run by default)
+# Project: Movie Manager V2.7 (Dry‑Run by default)
 # Date: June 26, 2025
 # ===========================================
 #   ______      _      _                     
@@ -11,21 +11,18 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 
-"""Movie Manager V2.6 – *dry‑run mode*
+"""Movie Manager V2.7 – *dry‑run mode*
 
-Non‑destructive by default: all moves/renames are *printed* while
-``DRY_RUN`` is ``True``.
+Changes vs. 2.6
+---------------
+1. **Keep files already in the right format** – if the stem ends with
+   ``_(YEAR)`` we now *skip* any rename.
+2. **Accurate tag filtering** – `is_unwanted()` is now *equality* based to
+   avoid false positives like *"America"* matching the tag *"AM"*.
+3. **Detect year inside parentheses** – tokens like ``(2019)`` are
+   recognised and preserved.
 
-**What’s fixed in 2.6**
-----------------------
-* _Substring_ matching for rip‑tags – e.g. a token such as ``1-[YTS`` now
-  matches ``YTS`` and is removed.
-* Added extra tag **"UHD"** + case‑insensitive detection.
-* Split tokens on dots, hyphens, underscores *and* spaces so odd bracketed
-  parts like ``[YTS.MX]`` get handled.
-
-After validating the output, flip ``DRY_RUN`` to ``False`` to actually move
-and rename files.
+As before, set ``DRY_RUN = False`` to perform the actual moves/renames.
 """
 
 from __future__ import annotations
@@ -45,63 +42,69 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # Configuration                                                               #
 # --------------------------------------------------------------------------- #
 
-DRY_RUN = True  # ← toggle once you’re happy with the printed actions
-
-# Tag & pattern definitions -------------------------------------------------- #
+DRY_RUN = True  # ⇦ toggle when satisfied with dry‑run output
 
 UNWANTED_WORDS: set[str] = {
     # Resolution / quality
-    "1080p", "720p", "2160p", "4k", "4K", "uhd", "UHD",
+    "1080p", "720p", "2160p", "4k", "uhd",
     # Source / codec
-    "BluRay", "WEBRip", "BRrip", "BRRip", "WEB", "HDRip", "DVDRip",
-    "x264", "x265", "H264", "H265", "HEVC",
+    "bluray", "webrip", "brrip", "hdrip", "dvdrip",
+    "x264", "x265", "h264", "h265", "hevc",
     # Audio / misc
-    "AAC", "AAC5", "DDP5", "DDP5_1", "DTS", "Atmos",
+    "aac", "aac5", "ddp5", "ddp5_1", "dts", "atmos",
     # Scene groups / misc flags
-    "YIFY", "YTS", "AM", "MX", "REPACK", "PROPER",
+    "yify", "yts", "repack", "proper",
     # Other noise
     "sample", "trailer",
 }
 
 VIDEO_EXTS: tuple[str, ...] = (".mp4", ".mkv", ".avi")
 YEAR_RE = re.compile(r"^(19|20)\d{2}$")
+PAREN_YEAR_RE = re.compile(r"^\((19|20)\d{2}\)$")
+READY_PATTERN = re.compile(r"_\((19|20)\d{2}\)$")  # title already ok
 
-# Pre‑lowered set for quick membership
-_UNWANTED_LOWER = {w.lower() for w in UNWANTED_WORDS}
+# Lower‑cased set for equality check
+_UNWANTED_EQUAL = {w.lower() for w in UNWANTED_WORDS}
 
 # --------------------------------------------------------------------------- #
 # Core helpers                                                                #
 # --------------------------------------------------------------------------- #
 
 def find_video_files(folder: Path) -> list[Path]:
-    """Return a list of all *video* files inside *folder* (recursive)."""
     return [p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS]
 
 
 def is_unwanted(token: str) -> bool:
-    """Return *True* if *token* contains any unwanted word (substring, case‑insensitive)."""
-    t = token.lower()
-    return any(w in t for w in _UNWANTED_LOWER)
+    """Exact match test: token (lower‑cased) must *equal* an unwanted tag."""
+    return token.lower() in _UNWANTED_EQUAL
 
 
 def build_clean_name(original: Path) -> Path:
-    """Return a new Path with a cleaned filename according to the spec."""
-    # Split on dot/dash/underscore/space so weird tokens like "1-[YTS" break apart
-    tokens = re.split(r"[.\-_ ]+", original.stem)
+    """Return a new Path with a cleaned filename or *original* if already good."""
+    stem = original.stem
 
+    # 1. Short‑circuit: already `Title_(YEAR)`? —> leave untouched
+    if READY_PATTERN.search(stem):
+        return original
+
+    # 2. Tokenise on dot/dash/underscore/space
+    tokens = re.split(r"[.\-_ ]+", stem)
     title_parts: List[str] = []
     year: str | None = None
 
     for token in tokens:
-        if not token:  # skip empties from consecutive separators
+        if not token:
             continue
         if YEAR_RE.fullmatch(token):
             year = token
             continue
+        if PAREN_YEAR_RE.fullmatch(token):
+            year = token.strip("()")  # capture without parentheses
+            continue
         if is_unwanted(token):
             continue
-        # Skip stray bracketed pieces entirely (e.g. "[YTS")
-        if any(ch in token for ch in "[](){}"):
+        # Drop stray bracketed pieces like "[YTS"
+        if any(ch in token for ch in "[]{}()"):
             continue
         title_parts.append(token)
 
@@ -139,8 +142,7 @@ def move_files_to_folder(files: Iterable[Path], destination: Path) -> None:
 
 def clean_movie_names(folder: Path) -> None:
     logging.info("Cleaning movie names…")
-    movie_files = list(folder.iterdir())
-    for file_path in tqdm(movie_files, desc="Renaming", unit="file"):
+    for file_path in tqdm(list(folder.iterdir()), desc="Renaming", unit="file"):
         if file_path.suffix.lower() not in VIDEO_EXTS:
             continue
         new_path = build_clean_name(file_path)
@@ -187,7 +189,7 @@ def prompt_path(message: str) -> Path:
 # Main routine                                                                #
 # --------------------------------------------------------------------------- #
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     src = prompt_path("Enter the source folder path: ")
     dst = prompt_path("Enter the destination folder path: ")
     save_paths({
