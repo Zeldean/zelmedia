@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V2.11
+# Project: Movie Manager V3.0
 # Date: June 26, 2025
 # ===========================================
 #   ______      _      _                     
@@ -11,17 +11,20 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 
-"""Movie Manager V2.10 - *dry-run mode*
+"""Movie Manager V3.0 - *production mode*
 
-Patch release - **Fix parentheses-year bug**
--------------------------------------------
-* `Dawn_of_the_Planet_of_the_Apes(2014).mp4` now →
-  `Dawn_of_the_Planet_of_the_Apes_(2014).mp4` (previously “20”).
-* Implemented with a named-group regex so we capture **all four digits**.
-* All prior features (smart sequel numbers, tag stripping, skip already
-  formatted, etc.) remain unchanged.
+This release removes the dry-run guard and performs moves/renames
+immediately. A minor naming tweak collapses any run of multiple
+underscores to a single underscore, so e.g. ``Godzilla_Vs__Kong`` becomes
+``Godzilla_Vs_Kong``.
 
-Flip ``DRY_RUN`` to ``False`` after verifying the dry-run output.
+Features kept from previous versions
+------------------------------------
+* Unwanted rip tags stripped (BluRay, 1080p, YTS, etc.).
+* Year extraction from tokens or trailing ``(YEAR)``.
+* Smart handling of sequel numbers.
+* Duplicate detection (moves to "[DUP] filename.ext").
+* Automatic persistence of last-used source/destination paths.
 """
 
 from __future__ import annotations
@@ -41,8 +44,6 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # Configuration                                                               #
 # --------------------------------------------------------------------------- #
 
-DRY_RUN = False  # ⇦ switch to False to actually move/rename files
-
 UNWANTED_WORDS: set[str] = {
     # Resolution / quality
     "1080p", "720p", "2160p", "4k", "uhd",
@@ -59,9 +60,8 @@ UNWANTED_WORDS: set[str] = {
 
 VIDEO_EXTS: tuple[str, ...] = (".mp4", ".mkv", ".avi")
 YEAR_RE = re.compile(r"^(19|20)\d{2}$")
-# Capture full 4‑digit year inside parentheses via named group "year"
 PAREN_YEAR_SEARCH = re.compile(r"\((?P<year>(?:19|20)\d{2})\)")
-READY_PATTERN = re.compile(r"_\((19|20)\d{2}\)$")  # filename already ok
+READY_PATTERN = re.compile(r"_\((19|20)\d{2}\)$")  # already compliant
 
 _UNWANTED_EQUAL = {w.lower() for w in UNWANTED_WORDS}
 
@@ -70,11 +70,17 @@ _UNWANTED_EQUAL = {w.lower() for w in UNWANTED_WORDS}
 # --------------------------------------------------------------------------- #
 
 def find_video_files(folder: Path) -> list[Path]:
+    """Return all video files inside *folder* recursively."""
     return [p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS]
 
 
 def is_unwanted(token: str) -> bool:
     return token.lower() in _UNWANTED_EQUAL
+
+
+def collapse_underscores(text: str) -> str:
+    """Reduce any sequence of 2+ underscores to a single underscore."""
+    return re.sub(r"_{2,}", "_", text)
 
 
 def build_clean_name(original: Path) -> Path:
@@ -84,12 +90,12 @@ def build_clean_name(original: Path) -> Path:
     if READY_PATTERN.search(stem):
         return original
 
-    # 1. Pull out an embedded (YEAR)
+    # 1. Extract embedded (YEAR)
     year: str | None = None
     m = PAREN_YEAR_SEARCH.search(stem)
     if m:
-        year = m.group("year")  # full 4‑digit year
-        stem = stem[: m.start()] + stem[m.end():]  # strip the "(YEAR)" from stem
+        year = m.group("year")
+        stem = stem[: m.start()] + stem[m.end():]
 
     # 2. Tokenise
     tokens = re.split(r"[.\-_ ]+", stem)
@@ -98,35 +104,32 @@ def build_clean_name(original: Path) -> Path:
     for token in tokens:
         if not token:
             continue
-        # Year detection (if still missing)
+        # Year detection if still missing
         if year is None and YEAR_RE.fullmatch(token):
             year = token
             continue
-        # Unwanted exact tag
         if is_unwanted(token):
             continue
-        # Skip bracketed junk entirely
         if any(ch in token for ch in "[]{}()"):
             continue
-        # Numeric sequel logic – keep short number only if before year is seen
+        # Numeric sequel logic – keep if before year is known
         if token.isdigit() and len(token) < 4:
             if year is None:
                 title_parts.append(token)
             continue
-        # Otherwise keep token
         title_parts.append(token)
 
     if not title_parts:
-        logging.warning("Could not derive title from %s – leaving as‑is", original.name)
+        logging.warning("Could not derive title from %s – leaving unchanged", original.name)
         return original
 
-    title = "_".join(title_parts)
-    new_stem = f"{title}_({year})" if year else title
+    title = collapse_underscores("_".join(title_parts))
+    new_stem = collapse_underscores(f"{title}_({year})" if year else title)
     return original.with_name(new_stem + original.suffix)
 
 
 # --------------------------------------------------------------------------- #
-# File operations (dry‑run aware)                                             #
+# File operations                                                             #
 # --------------------------------------------------------------------------- #
 
 def move_files_to_folder(files: Iterable[Path], destination: Path) -> None:
@@ -135,17 +138,10 @@ def move_files_to_folder(files: Iterable[Path], destination: Path) -> None:
         target = destination / file_path.name
         if target.exists():
             dup_target = destination / f"[DUP] {file_path.name}"
-            action = f"Would move {file_path} → {dup_target}"
-            if DRY_RUN:
-                print(action)
-            else:
-                shutil.move(file_path, dup_target)
+            logging.info("Duplicate detected – moving to %s", dup_target)
+            shutil.move(file_path, dup_target)
         else:
-            action = f"Would move {file_path} → {target}"
-            if DRY_RUN:
-                print(action)
-            else:
-                shutil.move(file_path, target)
+            shutil.move(file_path, target)
 
 
 def clean_movie_names(folder: Path) -> None:
@@ -156,11 +152,8 @@ def clean_movie_names(folder: Path) -> None:
         new_path = build_clean_name(file_path)
         if new_path.name == file_path.name:
             continue
-        action = f"Would rename {file_path.name} → {new_path.name}"
-        if DRY_RUN:
-            print(action)
-        else:
-            file_path.rename(new_path)
+        logging.debug("%s → %s", file_path.name, new_path.name)
+        file_path.rename(new_path)
 
 
 # --------------------------------------------------------------------------- #
@@ -207,6 +200,4 @@ if __name__ == "__main__":
 
     move_files_to_folder(find_video_files(src), dst)
     clean_movie_names(dst)
-    if DRY_RUN:
-        logging.info("Dry-run complete! Review the actions above. Set DRY_RUN = False when ready.")
-    
+    logging.info("Finished – all files processed.")
