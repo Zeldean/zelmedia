@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V2.7 (Dry‑Run by default)
+# Project: Movie Manager V2.9 (Dry‑Run by default)
 # Date: June 26, 2025
 # ===========================================
 #   ______      _      _                     
@@ -11,18 +11,18 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 
-"""Movie Manager V2.7 – *dry‑run mode*
+"""Movie Manager V2.9 – *dry‑run mode*
 
-Changes vs. 2.6
----------------
-1. **Keep files already in the right format** – if the stem ends with
-   ``_(YEAR)`` we now *skip* any rename.
-2. **Accurate tag filtering** – `is_unwanted()` is now *equality* based to
-   avoid false positives like *"America"* matching the tag *"AM"*.
-3. **Detect year inside parentheses** – tokens like ``(2019)`` are
-   recognised and preserved.
+**What’s new (vs. 2.8)**
+------------------------
+1. **Smart sequel numbers** – one‑ to three‑digit tokens ("2", "3", "101")
+   are kept **only if they appear *before* the year token**; numbers that
+   show up afterward (typical of codec fragments like ``AAC5.1``) are now
+   dropped.
+2. All prior fixes remain (already‑formatted names skipped, unwanted tag
+   equality, hidden ``(YEAR)`` capture, etc.).
 
-As before, set ``DRY_RUN = False`` to perform the actual moves/renames.
+Flip ``DRY_RUN`` to ``False`` once the output looks perfect.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # Configuration                                                               #
 # --------------------------------------------------------------------------- #
 
-DRY_RUN = True  # ⇦ toggle when satisfied with dry‑run output
+DRY_RUN = True  # ⇦ change after verifying dry‑run results
 
 UNWANTED_WORDS: set[str] = {
     # Resolution / quality
@@ -60,10 +60,9 @@ UNWANTED_WORDS: set[str] = {
 
 VIDEO_EXTS: tuple[str, ...] = (".mp4", ".mkv", ".avi")
 YEAR_RE = re.compile(r"^(19|20)\d{2}$")
-PAREN_YEAR_RE = re.compile(r"^\((19|20)\d{2}\)$")
-READY_PATTERN = re.compile(r"_\((19|20)\d{2}\)$")  # title already ok
+PAREN_YEAR_SEARCH = re.compile(r"\((19|20)\d{2}\)")
+READY_PATTERN = re.compile(r"_\((19|20)\d{2}\)$")  # filename already ok
 
-# Lower‑cased set for equality check
 _UNWANTED_EQUAL = {w.lower() for w in UNWANTED_WORDS}
 
 # --------------------------------------------------------------------------- #
@@ -75,37 +74,48 @@ def find_video_files(folder: Path) -> list[Path]:
 
 
 def is_unwanted(token: str) -> bool:
-    """Exact match test: token (lower‑cased) must *equal* an unwanted tag."""
     return token.lower() in _UNWANTED_EQUAL
 
 
 def build_clean_name(original: Path) -> Path:
-    """Return a new Path with a cleaned filename or *original* if already good."""
     stem = original.stem
 
-    # 1. Short‑circuit: already `Title_(YEAR)`? —> leave untouched
+    # 0. Already correct? Bail early
     if READY_PATTERN.search(stem):
         return original
 
-    # 2. Tokenise on dot/dash/underscore/space
-    tokens = re.split(r"[.\-_ ]+", stem)
-    title_parts: List[str] = []
+    # 1. Pull out an embedded (YEAR)
     year: str | None = None
+    m = PAREN_YEAR_SEARCH.search(stem)
+    if m:
+        year = m.group(1)
+        stem = stem[: m.start()] + stem[m.end():]
 
+    # 2. Tokenise
+    tokens = re.split(r"[.\-_ ]+", stem)
+
+    title_parts: List[str] = []
     for token in tokens:
         if not token:
             continue
-        if YEAR_RE.fullmatch(token):
+        # Year detection (if still missing)
+        if year is None and YEAR_RE.fullmatch(token):
             year = token
             continue
-        if PAREN_YEAR_RE.fullmatch(token):
-            year = token.strip("()")  # capture without parentheses
-            continue
+        # Unwanted exact tag
         if is_unwanted(token):
             continue
-        # Drop stray bracketed pieces like "[YTS"
+        # Skip bracketed junk entirely
         if any(ch in token for ch in "[]{}()"):
             continue
+        # Numeric sequel logic
+        if token.isdigit() and len(token) < 4:
+            # Keep if the year hasn't been seen *yet* (likely a sequel number)
+            if year is None:
+                title_parts.append(token)
+            # Else drop (codec artifacts appear after year)
+            continue
+        # Otherwise keep token
         title_parts.append(token)
 
     if not title_parts:
