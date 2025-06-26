@@ -191,4 +191,4 @@ if __name__ == "__main__":  # pragma: no cover
 
     move_files_to_folder(find_video_files(src), dst)
     clean_movie_names(dst)
-    logging.info("Dry‑run complete! Review the actions above. Set DRY_RUN = False when ready.")
+    logging.info("Dryrun complete! Review the actions above. Set DRY_RUN = False when ready.")
