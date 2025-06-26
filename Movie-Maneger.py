@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V2.9 (Dry‑Run by default)
+# Project: Movie Manager V2.10 (Dry‑Run by default)
 # Date: June 26, 2025
 # ===========================================
 #   ______      _      _                     
@@ -11,18 +11,17 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 
-"""Movie Manager V2.9 – *dry‑run mode*
+"""Movie Manager V2.10 – *dry‑run mode*
 
-**What’s new (vs. 2.8)**
-------------------------
-1. **Smart sequel numbers** – one‑ to three‑digit tokens ("2", "3", "101")
-   are kept **only if they appear *before* the year token**; numbers that
-   show up afterward (typical of codec fragments like ``AAC5.1``) are now
-   dropped.
-2. All prior fixes remain (already‑formatted names skipped, unwanted tag
-   equality, hidden ``(YEAR)`` capture, etc.).
+Patch release – **Fix parentheses‑year bug**
+-------------------------------------------
+* `Dawn_of_the_Planet_of_the_Apes(2014).mp4` now →
+  `Dawn_of_the_Planet_of_the_Apes_(2014).mp4` (previously “20”).
+* Implemented with a named‑group regex so we capture **all four digits**.
+* All prior features (smart sequel numbers, tag stripping, skip already
+  formatted, etc.) remain unchanged.
 
-Flip ``DRY_RUN`` to ``False`` once the output looks perfect.
+Flip ``DRY_RUN`` to ``False`` after verifying the dry‑run output.
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # Configuration                                                               #
 # --------------------------------------------------------------------------- #
 
-DRY_RUN = True  # ⇦ change after verifying dry‑run results
+DRY_RUN = True  # ⇦ switch to False to actually move/rename files
 
 UNWANTED_WORDS: set[str] = {
     # Resolution / quality
@@ -60,7 +59,8 @@ UNWANTED_WORDS: set[str] = {
 
 VIDEO_EXTS: tuple[str, ...] = (".mp4", ".mkv", ".avi")
 YEAR_RE = re.compile(r"^(19|20)\d{2}$")
-PAREN_YEAR_SEARCH = re.compile(r"\((19|20)\d{2}\)")
+# Capture full 4‑digit year inside parentheses via named group "year"
+PAREN_YEAR_SEARCH = re.compile(r"\((?P<year>(?:19|20)\d{2})\)")
 READY_PATTERN = re.compile(r"_\((19|20)\d{2}\)$")  # filename already ok
 
 _UNWANTED_EQUAL = {w.lower() for w in UNWANTED_WORDS}
@@ -88,8 +88,8 @@ def build_clean_name(original: Path) -> Path:
     year: str | None = None
     m = PAREN_YEAR_SEARCH.search(stem)
     if m:
-        year = m.group(1)
-        stem = stem[: m.start()] + stem[m.end():]
+        year = m.group("year")  # full 4‑digit year
+        stem = stem[: m.start()] + stem[m.end():]  # strip the "(YEAR)" from stem
 
     # 2. Tokenise
     tokens = re.split(r"[.\-_ ]+", stem)
@@ -108,12 +108,10 @@ def build_clean_name(original: Path) -> Path:
         # Skip bracketed junk entirely
         if any(ch in token for ch in "[]{}()"):
             continue
-        # Numeric sequel logic
+        # Numeric sequel logic – keep short number only if before year is seen
         if token.isdigit() and len(token) < 4:
-            # Keep if the year hasn't been seen *yet* (likely a sequel number)
             if year is None:
                 title_parts.append(token)
-            # Else drop (codec artifacts appear after year)
             continue
         # Otherwise keep token
         title_parts.append(token)
