@@ -1,7 +1,7 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V2.3
-# Date: October 7, 2024
+# Project: Movie Manager V2.4
+# Date: June 26, 2025
 # ===========================================
 #   ______      _      _                     
 #  |___  /     | |    | |                    
@@ -11,132 +11,183 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 
-import os
-import re
-import pickle
-import shutil
-from tqdm import tqdm
+"""Movie Manager V2.4
+
+This script performs three operations:
+
+1. Recursively finds video files in a *source* folder.
+2. Moves them to the *destination* folder, adding a "[DUP]" prefix when
+   a file of the same name already exists.
+3. Cleans up all filenames in the destination folder so they follow the
+   pattern::
+
+      Movie_Name_(YEAR).ext
+
+Unwanted rip‑tags such as *1080p*, *BluRay*, *x264*, etc. are stripped
+during the clean‑up step.
+
+Usage
+-----
+Run the script and follow the interactive prompts, or leave the prompts
+blank to reuse the last‑entered paths (stored in ``paths.pkl``).
+
+Dependencies
+------------
+* tqdm   – progress bars
+"""
+
+from __future__ import annotations
+
 import logging
+import os
+import pickle
+import re
+import shutil
+from pathlib import Path
+from typing import Iterable, List
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+from tqdm import tqdm
 
-# Set unwanted words and patterns for removal
-UNWANTED_WORDS = {
-    "1080p", "720p", "2160p", "4K",
-    "BluRay", "WEBRip", "BRrip", "x264", "AAC5", "YIFY", "YTS", "AM",
-    "REPACK", "1", "-[YTS", "MX]", "AM]", "[-]", "[ ]", "[", "]"
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+# --------------------------------------------------------------------------- #
+# Tag & pattern definitions                                                   #
+# --------------------------------------------------------------------------- #
+
+UNWANTED_WORDS: set[str] = {
+    # Resolutions / quality
+    "1080p", "720p", "2160p", "4k", "4K",
+    # Source or codec
+    "BluRay", "WEBRip", "BRrip", "BRRip", "WEB", "HDRip", "DVDRip",
+    "x264", "x265", "H264", "H265", "HEVC",
+    # Audio
+    "AAC", "AAC5", "DDP5", "DDP5_1", "DTS", "Atmos",
+    # Scene tags / groups
+    "YIFY", "YTS", "AM", "MX", "REPACK", "PROPER",
+    # Other noise
+    "sample", "trailer",
 }
 
-def clean_movie_names(folder_path):
-    logging.info("Renaming Movie Files")
-    print("Renaming Movie Files")
-    print("----------------------------------------------------------------------------------------")
+VIDEO_EXTS: tuple[str, ...] = (".mp4", ".mkv", ".avi")
 
-    new_file_names = []
-    
-    movie_files = os.listdir(folder_path)
-    total_files = len(movie_files)
-    
-    for file_name in tqdm(movie_files, desc="Cleaning movie names", total=total_files):
-        file_path = os.path.join(folder_path, file_name)
-        new_file_name = file_name
-        
-        parts = new_file_name.split('.')
-        file_extension = parts[-1] if len(parts) > 1 else ''
-        title_parts = parts[:-1]
+YEAR_RE = re.compile(r"^(19|20)\d{2}$")
 
-        cleaned_title_parts = []
-        for p in title_parts:
-            part_cleaned = False
-            
-            if re.match(r'^\d{4}$', p):
-                cleaned_title_parts.append(p.strip())
-                continue
-            
-            for unwanted_word in UNWANTED_WORDS:
-                pattern = f".*{re.escape(unwanted_word)}.*"
-                if re.search(pattern, p):
-                    part_cleaned = True
-                    break
-    
-            if not part_cleaned:
-                cleaned_title_parts.append(p.strip())
 
-        if not cleaned_title_parts:
-            logging.warning("No valid title parts found for file %s. Skipping rename.", file_name)
+# --------------------------------------------------------------------------- #
+# Core helpers                                                                #
+# --------------------------------------------------------------------------- #
+
+def find_video_files(folder: Path) -> list[Path]:
+    """Return a list of all *video* files inside *folder* (recursive)."""
+    return [
+        p
+        for p in folder.rglob("*")
+        if p.is_file() and p.suffix.lower() in VIDEO_EXTS
+    ]
+
+
+def is_unwanted(token: str) -> bool:
+    """Case‑insensitive membership test *token* ∈ UNWANTED_WORDS."""
+    return token.lower() in {w.lower() for w in UNWANTED_WORDS}
+
+
+def build_clean_name(original: Path) -> Path:
+    """Return a *new* Path with a cleaned filename according to the spec."""
+    tokens = original.stem.split(".")
+    title_parts: List[str] = []
+    year: str | None = None
+
+    for token in tokens:
+        if YEAR_RE.fullmatch(token):
+            year = token
             continue
+        if is_unwanted(token):
+            continue
+        title_parts.append(token)
 
-        if len(cleaned_title_parts[-1]) == 4:
-            new_file_name = f"{'_'.join(cleaned_title_parts)}.{file_extension}" if file_extension else ' '.join(cleaned_title_parts)
+    if not title_parts:
+        # Fallback: keep original stem if nothing was salvageable
+        logging.warning("Could not derive title from %s – leaving as‑is", original.name)
+        return original
 
-        if new_file_name != file_name:
-            new_file_names.append(new_file_name)
-            print(f"{len(new_file_names)}-\t{new_file_name}")  # Print new movie name
-            try:
-                new_file_path = os.path.join(folder_path, new_file_name)
-                print(f"Renaming {file_name} to {new_file_name}")
-                os.rename(file_path, new_file_path)
-            except OSError as e:
-                logging.error("Error renaming file %s: %s", file_name, e)
+    title = "_".join(title_parts)
 
-    print("====================================================")
+    new_stem = f"{title}_({year})" if year else title
+    return original.with_name(f"{new_stem}{original.suffix}")
 
 
-def find_video_files(folder_path):
-    video_files = []
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            if file.lower().endswith(('.mp4', '.mkv', '.avi')):
-                video_files.append(os.path.join(root, file))
-    return video_files
-
-def move_files_to_folder(file_paths, folder):
-    print("Moving Movie Files")
-    print("----------------------------------------------------------------------------------------")
-    total_files = len(file_paths)
-
-    for file_path in tqdm(file_paths, desc="Moving files", total=total_files):
-        filename = os.path.basename(file_path)
-        new_file_path = os.path.join(folder, filename)
-
-        if os.path.exists(new_file_path):
-            dup_file_path = os.path.join(folder, f"[DUP] {filename}")
-            if not os.path.exists(dup_file_path):
-                shutil.move(file_path, dup_file_path)
+def move_files_to_folder(files: Iterable[Path], destination: Path) -> None:
+    """Move *files* into *destination*, handling duplicates."""
+    destination.mkdir(parents=True, exist_ok=True)
+    for file_path in tqdm(files, desc="Moving files", unit="file"):
+        target = destination / file_path.name
+        if target.exists():
+            dup_target = destination / f"[DUP] {file_path.name}"
+            shutil.move(file_path, dup_target)
         else:
-            shutil.move(file_path, new_file_path)
-        print(f"{file_paths.index(file_path) + 1}-\t{filename}")  # Print moved movie name
+            shutil.move(file_path, target)
 
-    print("====================================================")
 
-def get_user_input(message):
-    user_input = input(message)
-    if not user_input:
-        try:
-            with open('paths.pkl', 'rb') as f:
-                paths = pickle.load(f)
-            user_input = paths.get(message)
-        except (FileNotFoundError, EOFError):
-            logging.warning("No saved paths found. Please enter a valid path.")
-            user_input = input("Please enter a valid path: ")
-    return user_input
+def clean_movie_names(folder: Path) -> None:
+    """Rename movie files inside *folder* to the canonical pattern."""
+    logging.info("Cleaning movie names…")
+    movie_files = list(folder.iterdir())
 
-def save_paths(paths):
-    with open('paths.pkl', 'wb') as f:
+    for file_path in tqdm(movie_files, desc="Renaming", unit="file"):
+        if file_path.suffix.lower() not in VIDEO_EXTS:
+            continue  # Skip non‑video artefacts
+
+        new_path = build_clean_name(file_path)
+        if new_path.name != file_path.name:
+            logging.debug("%s → %s", file_path.name, new_path.name)
+            file_path.rename(new_path)
+
+
+# --------------------------------------------------------------------------- #
+# Persistence utilities                                                       #
+# --------------------------------------------------------------------------- #
+
+PATHS_PKL = Path("paths.pkl")
+
+
+def load_saved_path(prompt: str) -> str | None:
+    if not PATHS_PKL.exists():
+        return None
+    with PATHS_PKL.open("rb") as f:
+        paths: dict[str, str] = pickle.load(f)
+    return paths.get(prompt)
+
+
+def save_paths(paths: dict[str, str]) -> None:
+    with PATHS_PKL.open("wb") as f:
         pickle.dump(paths, f)
 
-# Main script logic
-if __name__ == "__main__":
-    source_folder = get_user_input('Enter the source folder path: ')
-    destination_folder = get_user_input('Enter the destination folder path: ')
 
-    paths = {
-        'Enter the source folder path: ': source_folder,
-        'Enter the destination folder path: ': destination_folder
-    }
-    save_paths(paths)
+def prompt_path(message: str) -> Path:
+    user_input = input(message).strip()
+    if not user_input:
+        user_input = load_saved_path(message) or input("Please enter a valid path: ").strip()
+    path = Path(user_input).expanduser()
+    if not path.exists():
+        raise FileNotFoundError(f"{path} does not exist")
+    return path
 
-    video_files = find_video_files(source_folder)
-    move_files_to_folder(video_files, destination_folder)
-    clean_movie_names(destination_folder)
+
+# --------------------------------------------------------------------------- #
+# Main routine                                                                #
+# --------------------------------------------------------------------------- #
+
+if __name__ == "__main__":  # pragma: no cover
+    src = prompt_path("Enter the source folder path: ")
+    dst = prompt_path("Enter the destination folder path: ")
+    save_paths(
+        {
+            "Enter the source folder path: ": str(src),
+            "Enter the destination folder path: ": str(dst),
+        }
+    )
+
+    # 1. Gather –> 2. Move –> 3. Clean
+    move_files_to_folder(find_video_files(src), dst)
+    clean_movie_names(dst)
+    logging.info("All done! 🎬")
