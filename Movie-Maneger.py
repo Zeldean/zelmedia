@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V2.10 (Dry‑Run by default)
+# Project: Movie Manager V2.11
 # Date: June 26, 2025
 # ===========================================
 #   ______      _      _                     
@@ -11,17 +11,17 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 
-"""Movie Manager V2.10 – *dry‑run mode*
+"""Movie Manager V2.10 - *dry-run mode*
 
-Patch release – **Fix parentheses‑year bug**
+Patch release - **Fix parentheses-year bug**
 -------------------------------------------
 * `Dawn_of_the_Planet_of_the_Apes(2014).mp4` now →
   `Dawn_of_the_Planet_of_the_Apes_(2014).mp4` (previously “20”).
-* Implemented with a named‑group regex so we capture **all four digits**.
+* Implemented with a named-group regex so we capture **all four digits**.
 * All prior features (smart sequel numbers, tag stripping, skip already
   formatted, etc.) remain unchanged.
 
-Flip ``DRY_RUN`` to ``False`` after verifying the dry‑run output.
+Flip ``DRY_RUN`` to ``False`` after verifying the dry-run output.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # Configuration                                                               #
 # --------------------------------------------------------------------------- #
 
-DRY_RUN = True  # ⇦ switch to False to actually move/rename files
+DRY_RUN = False  # ⇦ switch to False to actually move/rename files
 
 UNWANTED_WORDS: set[str] = {
     # Resolution / quality
@@ -207,4 +207,6 @@ if __name__ == "__main__":
 
     move_files_to_folder(find_video_files(src), dst)
     clean_movie_names(dst)
-    logging.info("Dry‑run complete! Review the actions above. Set DRY_RUN = False when ready.")
+    if DRY_RUN:
+        logging.info("Dry-run complete! Review the actions above. Set DRY_RUN = False when ready.")
+    
