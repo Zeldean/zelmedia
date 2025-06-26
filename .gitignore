@@ -1,0 +1,9 @@
+# Python virtual environment
+.venv/
+
+# Binary pickle files (user‑defined)
+\*.plk
+
+# Optional: common Python artifacts – comment out if you want to track them
+**pycache**/
+\*.pkl
