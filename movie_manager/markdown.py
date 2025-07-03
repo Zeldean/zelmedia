@@ -1,24 +1,39 @@
 # movie_manager/markdown.py
 from pathlib import Path
-import yaml, textwrap, requests, json
+import yaml, datetime, textwrap
 
-def slugify(title: str) -> str:
-    return "-".join(title.lower().split())
+# ──────────────────────────────────────────────────────────────
+# helpers
+# ──────────────────────────────────────────────────────────────
+def title_to_stem(title: str, year: int | str) -> str:
+    """Avatar → Avatar_(2009)  ; keeps exact case / spaces→underscores."""
+    return f"{title.replace(' ', '_')}_({year})"
 
+def pretty(title: str, year: int | str) -> str:
+    return f"{title} ({year})"
+
+def year_from_date(yyyy_mm_dd: str | None) -> str | int:
+    if not yyyy_mm_dd:
+        return "????"
+    return datetime.datetime.fromisoformat(yyyy_mm_dd).year
+
+# ──────────────────────────────────────────────────────────────
 def save_markdown(movie: dict, meta: dict, out_dir="notes") -> Path:
-    """
-    Write / overwrite a Markdown file with rich sections:
-    Synopsis, Cast, More Like This, Related.
-    """
-    out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    md_path = out / f"{slugify(movie['title'])}.md"
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ---------- YAML front-matter ----------
+    stem = title_to_stem(movie["title"], movie["year"])
+    md_path = out_dir / f"{stem}.md"
+
+    # ---------- FRONT-MATTER ----------
     front = {
         "cssclasses": "",
-        "tags": ["media/movie", f"media/movie/{movie['year']}", f"media/franchise/{meta.get('franchise','Stand-alone')}"],
-        "title": f"{movie['title']} ({movie['year']})",
+        "tags": [
+            "media/movie",
+            f"media/movie/{movie['year']}",
+            f"media/franchise/{meta.get('franchise','Stand-alone')}"
+        ],
+        "title": pretty(movie["title"], movie["year"]),
         "yearReleased": movie["year"],
         "imdbID": meta.get("imdb"),
         "runtime": meta.get("runtime"),
@@ -28,29 +43,44 @@ def save_markdown(movie: dict, meta: dict, out_dir="notes") -> Path:
         "fileName": Path(movie["file"]).name,
     }
 
-    # ---------- body sections ----------
-    synopsis = meta.get("plot", "Synopsis not available.")
-    cast = "\n".join(f"- {a}" for a in meta.get("cast", [])[:5]) or "- TODO"
-    more_like = "\n".join(f"- [[{t.replace(' ', '_')}_(????)]]"
-                          for t in meta.get("similar", [])) or "- TODO"
-    related = "\n".join(f"- [[{r.replace(' ', '_')}_(????)]]"
-                        for r in meta.get("collection_parts", []))
-    related_tv = "\n".join(f"- [[TV-Shows/{s}]]" for s in meta.get("series", []))
-    related_block = related + ("\n" if related and related_tv else "") + related_tv or "- "
+    # ---------- CAST ----------
+    cast_block = "\n".join(f"- {c}" for c in meta.get("cast", [])[:5]) or "- TODO"
 
+    # ---------- MORE-LIKE-THIS ----------
+    more_like_block = "- TODO"
+    if meta.get("similar"):
+        ml_items = []
+        for sim in meta["similar"]:
+            y = year_from_date(sim.get("release_date"))
+            stem_sim = title_to_stem(sim["title"], y)
+            ml_items.append(f"- [[{stem_sim}|{pretty(sim['title'], y)}]]")
+        more_like_block = "\n".join(ml_items)
+
+    # ---------- RELATED (collection + TV) ----------
+    collection_block = []
+    for p in meta.get("collection_parts", []):
+        y = year_from_date(p.get("release_date"))
+        stem_p = title_to_stem(p["title"], y)
+        collection_block.append(f"- [[{stem_p}|{pretty(p['title'], y)}]]")
+
+    tv_block = [f"- [[TV-Shows/{s}]]" for s in meta.get("series", [])]
+
+    related_block = "\n".join(collection_block + tv_block) or "- "
+
+    # ---------- WRITE ----------
     note = textwrap.dedent(f"""\
     ---
-    {yaml.safe_dump(front, sort_keys=False, allow_unicode=True, default_flow_style=False)}---
+    {yaml.safe_dump(front, sort_keys=False, allow_unicode=True)}---
     # Synopsis
-    {synopsis}
+    {meta.get('plot', 'Synopsis not available.')}
 
     ---
     # Cast (main)
-    {cast}
+    {cast_block}
 
     ---
     # More Like This
-    {more_like}
+    {more_like_block}
 
     ---
     # Related
