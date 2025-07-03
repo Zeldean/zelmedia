@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.1
+# Project: Movie Manager V3.4
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -52,7 +52,12 @@ def gen_notes(folder, out):
             click.echo(f"⚠️  {mv['title']} – {e}")
             meta = {}
         md_path = markdown.save_markdown(mv, meta, out)
-        click.echo(f"✓ {md_path.relative_to(Path.cwd())}")
+        try:
+            rel = md_path.relative_to(Path.cwd())
+        except ValueError:
+            rel = md_path
+        click.echo(f"✓ {rel}")
+
 
 # ─────────────────────── clean-names ─────────────────────
 @movie.command("clean-names")
