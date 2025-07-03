@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/mnt/Extra/Repos/17_Automation_Scripts/My Movie Maneger/.venv/bin/python" "$0" "$@"
-' '''
+#!/mnt/Extra/Repos/00_Core_Projects/movie_manager/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
