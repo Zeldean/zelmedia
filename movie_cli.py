@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.10
+# Project: Movie Manager V3.11
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -49,15 +49,16 @@ def gen_notes(folder, out):
     for mv in scan.list_movies(folder):
         try:
             meta = metadata.movie_details(mv["title"], mv["year"])
-        except (RuntimeError, requests.exceptions.RequestException) as e:
+        except (requests.exceptions.RequestException, RuntimeError) as e:
             click.echo(f"⚠️  {mv['title']} – {e}. Skipping.")
             continue
+
+        if meta is None:                      # no TMDb match
+            click.echo(f"⚠️  {mv['title']} – not found on TMDb. Skipping.")
+            continue
+
         md_path = markdown.save_markdown(mv, meta, out)
-        try:
-            rel = md_path.relative_to(Path.cwd())
-        except ValueError:
-            rel = md_path
-        click.echo(f"✓ {rel}")
+        click.echo(f"✓ {md_path}")
 
 
 # ─────────────────────── clean-names ─────────────────────
