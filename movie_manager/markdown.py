@@ -47,14 +47,29 @@ def save_markdown(movie: dict, meta: dict, out_dir="notes") -> Path:
     cast_block = "\n".join(f"- {c}" for c in meta.get("cast", [])[:5]) or "- TODO"
 
     # ---------- MORE-LIKE-THIS ----------
-    more_like_block = "- TODO"
-    if meta.get("similar"):
-        ml_items = []
-        for sim in meta["similar"]:
-            y = year_from_date(sim.get("release_date"))
-            stem_sim = title_to_stem(sim["title"], y)
-            ml_items.append(f"- [[{stem_sim}|{pretty(sim['title'], y)}]]")
-        more_like_block = "\n".join(ml_items)
+    # more_like_block = "- TODO"
+    # if meta.get("similar"):
+    #     ml_items = []
+    #     for sim in meta["similar"]:
+    #         y = year_from_date(sim.get("release_date"))
+    #         stem_sim = title_to_stem(sim["title"], y)
+    #         ml_items.append(f"- [[{stem_sim}|{pretty(sim['title'], y)}]]")
+    #     more_like_block = "\n".join(ml_items)
+
+    more_like_items = []
+    for sim in meta.get("similar", []):
+        if isinstance(sim, dict):                   # new robust branch
+            title = sim["title"]
+            release = sim.get("release_date")
+        else:                                       # backwards-compat string
+            title = sim
+            release = None
+
+        y = year_from_date(release)
+        stem_sim = title_to_stem(title, y)
+        more_like_items.append(f"- [[{stem_sim}|{pretty(title, y)}]]")
+
+    more_like_block = "\n".join(more_like_items) or "- TODO"
 
     # ---------- RELATED (collection + TV) ----------
     collection_block = []

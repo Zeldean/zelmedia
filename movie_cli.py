@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.7
+# Project: Movie Manager V3.8
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -11,7 +11,7 @@
 #  /_____|\___||_| \__,_| \___| \__,_||_| |_|
 # ===========================================
 from dotenv import load_dotenv
-load_dotenv()                               # picks up TMDB_API_KEY from .env
+load_dotenv()
 
 import logging
 import json
