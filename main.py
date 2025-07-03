@@ -48,14 +48,13 @@ UNWANTED_WORDS: set[str] = {
     # Resolution / quality
     "1080p", "720p", "2160p", "4k", "uhd",
     # Source / codec
-    "bluray", "webrip", "brrip", "hdrip", "dvdrip",
-    "x264", "x265", "h264", "h265", "hevc",
+    "bluray", "webrip", "brrip", "hdrip", "dvdrip", "x264", "x265", "h264", "h265", "hevc",
     # Audio / misc
     "aac", "aac5", "ddp5", "ddp5_1", "dts", "atmos",
     # Scene groups / misc flags
     "yify", "yts", "repack", "proper",
     # Other noise
-    "sample", "trailer",
+    "sample", "trailer", "BOKUTOX"
 }
 
 VIDEO_EXTS: tuple[str, ...] = (".mp4", ".mkv", ".avi")
@@ -73,15 +72,12 @@ def find_video_files(folder: Path) -> list[Path]:
     """Return all video files inside *folder* recursively."""
     return [p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS]
 
-
 def is_unwanted(token: str) -> bool:
     return token.lower() in _UNWANTED_EQUAL
-
 
 def collapse_underscores(text: str) -> str:
     """Reduce any sequence of 2+ underscores to a single underscore."""
     return re.sub(r"_{2,}", "_", text)
-
 
 def build_clean_name(original: Path) -> Path:
     stem = original.stem
