@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.9
+# Project: Movie Manager V3.10
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     

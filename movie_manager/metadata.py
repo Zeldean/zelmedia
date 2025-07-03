@@ -28,13 +28,16 @@ def _year(date_str: str | None) -> int | str:
         return "????"
     return datetime.datetime.fromisoformat(date_str).year
 
-def movie_details(title: str, year: int | str) -> dict:
+def movie_details(title: str, year: int | str) -> dict | None:
     key = f"{title}_{year}"
     if key in _CACHE:
         return _CACHE[key]
 
-    hit = _q("search/movie", query=title, year=year)["results"][0]
-    mid = hit["id"]
+    search = _q("search/movie", query=title, year=year)["results"]
+    if not search:                        # ← handle zero hits
+        return None
+
+    mid = search[0]["id"]
     info = _q(
         f"movie/{mid}",
         append_to_response="similar,credits,external_ids"
@@ -45,10 +48,8 @@ def movie_details(title: str, year: int | str) -> dict:
         "runtime": info["runtime"],
         "genres" : [g["name"] for g in info["genres"]],
         "imdb"   : info["external_ids"]["imdb_id"],
-        "poster" : f"https://image.tmdb.org/t/p/original{info['poster_path']}"
-                    if info.get("poster_path") else "",
-        "franchise": (info["belongs_to_collection"]["name"]
-                      if info["belongs_to_collection"] else "Stand-alone"),
+        "poster" : f"https://image.tmdb.org/t/p/original{info['poster_path']}" if info.get("poster_path") else "",
+        "franchise": (info["belongs_to_collection"]["name"] if info["belongs_to_collection"] else "Stand-alone"),
         # Similar = list of dicts → markdown can fetch title & date
         "similar": [
             {
