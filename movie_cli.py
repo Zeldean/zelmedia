@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.12
+# Project: Movie Manager V3.13
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -50,11 +50,11 @@ def gen_notes(folder, out):
         try:
             meta = metadata.movie_details(mv["title"], mv["year"])
         except (requests.exceptions.RequestException, RuntimeError) as e:
-            click.echo(f"⚠️  {mv['title']} – {e}. Skipping.")
+            click.echo(f"⚠️  {mv['title']} - {e}. Skipping.")
             continue
 
         if meta is None:                      # no TMDb match
-            click.echo(f"⚠️  {mv['title']} – not found on TMDb. Skipping.")
+            click.echo(f"⚠️  {mv['title']} - not found on TMDb. Skipping.")
             continue
 
         md_path = markdown.save_markdown(mv, meta, out)
@@ -67,6 +67,34 @@ def gen_notes(folder, out):
 def clean_cmd(folder):
     """Rename movies in-place to Nice_Title_(YEAR).ext"""
     rename.clean_movie_names(Path(folder))
+
+# ───────────────────────── move-files ─────────────────────────
+@movie.command("move")
+@click.argument("src", type=click.Path(exists=True, file_okay=False))
+@click.argument("dst", type=click.Path(file_okay=False))
+@click.option("--remember", is_flag=True,
+              help="Cache these paths so the next run can omit them.")
+def move_cmd(src, dst, remember):
+    """
+    Move **all** video files from SRC (recursively) to DST (flat),
+    preserving original names. Duplicates are prefixed with “[DUP] ”.
+    """
+    src_p, dst_p = Path(src), Path(dst)
+    files = scan.find_video_files(src_p)
+    if not files:
+        click.echo("No video files found — nothing to move.")
+        return
+
+    rename.move_files_to_folder(files, dst_p)
+    click.echo(f"✅ Moved {len(files)} files to {dst_p}")
+
+    if remember:
+        from movie_manager import paths
+        paths.save_paths({
+            "last_src": str(src_p),
+            "last_dst": str(dst_p),
+        })
+
 
 # ───────────────────────── main ─────────────────────────
 if __name__ == "__main__":
