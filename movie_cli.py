@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.6
+# Project: Movie Manager V3.7
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -48,9 +48,9 @@ def gen_notes(folder, out):
     for mv in scan.list_movies(folder):
         try:
             meta = metadata.movie_details(mv["title"], mv["year"])
-        except RuntimeError as e:
-            click.echo(f"⚠️  {mv['title']} - {e}")
-            meta = {}
+        except (RuntimeError, requests.exceptions.RequestException) as e:
+            click.echo(f"⚠️  {mv['title']} – {e}. Skipping.")
+            continue
         md_path = markdown.save_markdown(mv, meta, out)
         try:
             rel = md_path.relative_to(Path.cwd())

@@ -5,7 +5,12 @@ API_KEY = os.getenv("TMDB_API_KEY")          # export this before running
 
 def _q(endpoint, **params):
     params["api_key"] = API_KEY
-    return requests.get(f"{TMDB}/{endpoint}", params=params, timeout=10).json()
+    r = requests.get(f"{TMDB}/{endpoint}", params=params, timeout=30)
+    r.raise_for_status()                  # raise HTTP errors
+    data = r.json()
+    if "status_code" in data and data["status_code"] != 1:
+        raise RuntimeError(data["status_message"])
+    return data
 
 def movie_details(title, year):
     # 1) search

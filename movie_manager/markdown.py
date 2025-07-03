@@ -27,7 +27,7 @@ def save_markdown(movie: dict, meta: dict, out_dir="notes") -> Path:
 
     # ---------- FRONT-MATTER ----------
     front = {
-        "cssclasses": "",
+        "cssclasses": "mediaNote",
         "tags": [
             "media/movie",
             f"media/movie/{movie['year']}",
