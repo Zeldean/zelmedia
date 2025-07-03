@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.8
+# Project: Movie Manager V3.9
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -17,6 +17,7 @@ import logging
 import json
 from pathlib import Path
 import click
+import requests
 
 from movie_manager import scan, markdown, metadata, rename
 
