@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V3.4
+# Project: Movie Manager V3.5
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -49,7 +49,7 @@ def gen_notes(folder, out):
         try:
             meta = metadata.movie_details(mv["title"], mv["year"])
         except RuntimeError as e:
-            click.echo(f"⚠️  {mv['title']} – {e}")
+            click.echo(f"⚠️  {mv['title']} - {e}")
             meta = {}
         md_path = markdown.save_markdown(mv, meta, out)
         try:
