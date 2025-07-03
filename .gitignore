@@ -3,3 +3,4 @@
 **pycache**/
 \*.pkl
 .env
+metadata.cache.json
