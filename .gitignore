@@ -1,6 +1,16 @@
+# ---- Python byte-code / cache ---------------------------------
+__pycache__/
+*.py[cod]
+
+# ---- Virtual-env ---------------------------------------------
 .venv/
-\*.plk
-**pycache**/
-\*.pkl
+
+# ---- Serialized data / pickles -------------------------------
+*.pkl
+*.plk
+
+# ---- Local secrets -------------------------------------------
 .env
+
+# ---- App-specific cache --------------------------------------
 metadata.cache.json
