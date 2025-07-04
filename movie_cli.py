@@ -1,6 +1,6 @@
 # ===========================================
 # Author: Zeldean
-# Project: Movie Manager V4.1
+# Project: Movie Manager V4.2
 # Date: July 03, 2025
 # ===========================================
 #   ______      _      _                     
@@ -95,6 +95,19 @@ def move_cmd(src, dst, remember):
             "last_dst": str(dst_p),
         })
 
+@movie.command("yts-links")
+@click.option("--out", "-o", type=click.Path(dir_okay=False),
+              help="Write to file instead of stdout")
+def yts_links(out):
+    """Print a YTS download link for every cached movie."""
+    from movie_manager import links
+    lines = [link for *_ , link in links.iter_links()]
+    text  = "\n".join(lines)
+    if out:
+        Path(out).write_text(text)
+        click.echo(f"✓ wrote {len(lines)} links to {out}")
+    else:
+        click.echo(text)
 
 # ───────────────────────── main ─────────────────────────
 if __name__ == "__main__":
