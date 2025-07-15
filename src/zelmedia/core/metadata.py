@@ -1,5 +1,5 @@
 """
-TMDb wrapper – returns one dict with everything markdown.py needs.
+TMDb wrapper - returns one dict with everything markdown.py needs.
 Requires TMDB_API_KEY in the env (python-dotenv already loads .env).
 """
 from pathlib import Path

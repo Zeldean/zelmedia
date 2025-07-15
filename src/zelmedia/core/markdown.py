@@ -19,8 +19,6 @@ def save_markdown(movie: dict, meta: dict, out_dir="notes") -> Path:
         "cssclasses": "mediaNote",
         "tags": [
             "media/movie",
-            f"media/movie/{movie['year']}",
-            f"media/franchise/{meta['franchise'].replace(' ', '_')}"
         ],
         "title": pretty(movie['title'], movie['year']),
         "yearReleased": movie['year'],
