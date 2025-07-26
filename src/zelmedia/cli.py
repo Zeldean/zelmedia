@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 # ---------------------------------------------------------------------#
 @click.group()
 def movie() -> None:
-    """ZelMedia - manage movies & notes."""
+    """ZelMedia CLI - manage movies."""
     pass
 
 
