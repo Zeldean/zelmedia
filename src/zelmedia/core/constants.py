@@ -29,7 +29,7 @@ READY_PATTERN     = re.compile(r"_\((19|20)\d{2}\)$")
 
 # ─────────────────────── runtime data location ───────────────────────
 # ~/.local/state/zel/zelmedia/   (or $XDG_STATE_HOME)
-_DATA_ROOT = Path(os.getenv("XDG_STATE_HOME", "~/.local/state")).expanduser() / "zel" / "zelmedia"
+_DATA_ROOT = Path(os.getenv("XDG_STATE_HOME", "~/.local/state")).expanduser() / "zel"
 _DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
 PATHS_JSON = _DATA_ROOT / "paths.json"   # file is created on first save()
