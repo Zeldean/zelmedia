@@ -73,14 +73,24 @@ def clean_cmd(folder: str) -> None:
 
 # ───────────────────────── move files ───────────────────────
 @movie.command("move")
-@click.argument("src", type=click.Path(exists=True, file_okay=False))
-@click.argument("dst", type=click.Path(file_okay=False))
+@click.argument("src", required=False, type=click.Path(exists=True, file_okay=False))
+@click.argument("dst", required=False, type=click.Path(file_okay=False))
 @click.option("--remember", is_flag=True, help="Cache these paths for next run")
-def move_cmd(src: str, dst: str, remember: bool) -> None:
+def move_cmd(src: str | None, dst: str | None, remember: bool) -> None:
     """
     Move **all** video files from SRC (recursively) to DST (flat).
     Duplicates are renamed “[DUP] filename.ext”.
+    If no SRC/DST is passed, tries saved paths.
     """
+    if not src:
+        src = paths.load_saved_path("last_src")
+    if not dst:
+        dst = paths.load_saved_path("last_dst")
+
+    if not src or not dst:
+        click.echo("Error: source and/or destination not provided or saved.")
+        return
+
     src_p, dst_p = Path(src), Path(dst)
     files = scan.find_video_files(src_p)
     if not files:
