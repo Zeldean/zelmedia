@@ -84,7 +84,7 @@ def move_cmd(src: str, dst: str, remember: bool) -> None:
     src_p, dst_p = Path(src), Path(dst)
     files = scan.find_video_files(src_p)
     if not files:
-        click.echo("No video files found – nothing to move.")
+        click.echo("No video files found - nothing to move.")
         return
 
     rename.move_files_to_folder(files, dst_p)

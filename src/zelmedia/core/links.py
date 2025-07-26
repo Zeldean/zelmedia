@@ -28,7 +28,7 @@ def iter_links():
     try:
         cache = json.loads(CACHE_FILE.read_text())
     except FileNotFoundError:
-        return  # nothing yet – let caller handle
+        return  # nothing yet - let caller handle
     except json.JSONDecodeError:
         raise RuntimeError(f"{CACHE_FILE} is corrupted")
 
@@ -49,7 +49,7 @@ def _key(title, year):
 def iter_recommended_links():
     """
     Yield (title, year, url) for all movies appearing in any
-    `similar` list – excluding ones you already own and duplicates.
+    `similar` list - excluding ones you already own and duplicates.
     """
     try:
         cache = json.loads(CACHE_FILE.read_text())

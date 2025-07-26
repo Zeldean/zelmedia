@@ -71,7 +71,7 @@ def build_clean_name(original: Path) -> Path:
         title_parts.append(tok)
 
     if not title_parts:
-        log.warning("Could not derive title from %s – leaving unchanged", original.name)
+        log.warning("Could not derive title from %s - leaving unchanged", original.name)
         return original
 
     # 3. Re-assemble, collapse “_”, strip artefacts
@@ -92,7 +92,7 @@ def move_files_to_folder(files: Iterable[Path], destination: Path) -> None:
         target = destination / file_path.name
         if target.exists():
             dup_target = destination / f"[DUP] {file_path.name}"
-            log.info("Duplicate detected – moving to %s", dup_target)
+            log.info("Duplicate detected - moving to %s", dup_target)
             shutil.move(file_path, dup_target)
         else:
             shutil.move(file_path, target)
