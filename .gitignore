@@ -1,16 +1,51 @@
-# ---- Python byte-code / cache ---------------------------------
+# ─────────────────────────────────────────────
+# Python artefacts
+# ─────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-
-# ---- Virtual-env ---------------------------------------------
-.venv/
-
-# ---- Serialized data / pickles -------------------------------
 *.pkl
 *.plk
 
-# ---- Local secrets -------------------------------------------
-.env
+# Bytecode cache
+*.pyc
 
-# ---- App-specific cache --------------------------------------
-metadata.cache.json
+# Build/dist/metadata
+*.egg-info/
+*.manifest
+*.spec
+dist/
+build/
+.eggs/
+
+# C extensions
+*.so
+
+# .env + local runtime data
+.env
+.venv/
+.metadata.cache.json
+*.cache.json
+
+# Local state or override paths
+paths.json
+paths.pkl
+
+# pip / poetry logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test coverage / profiling
+htmlcov/
+.coverage
+.tox/
+.pytest_cache/
+.cache/
+.prof
+
+# Editors / OS clutter
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
