@@ -7,7 +7,8 @@ import os, json, requests, datetime
 
 TMDB = "https://api.themoviedb.org/3"
 API_KEY = os.getenv("TMDB_API_KEY")
-CACHE_FILE = Path(__file__).with_suffix(".cache.json")
+_DATA_ROOT = Path(os.getenv("XDG_STATE_HOME", "~/.local/state")).expanduser() / "zel"
+CACHE_FILE = _DATA_ROOT / Path(__file__).with_suffix(".cache.json").name
 
 try:
     _CACHE = json.loads(CACHE_FILE.read_text())

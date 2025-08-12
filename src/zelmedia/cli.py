@@ -3,6 +3,7 @@ ZelMedia - command-line entry point
 """
 from __future__ import annotations
 
+import os
 import json
 import logging
 from pathlib import Path
@@ -12,8 +13,9 @@ import click
 import requests
 from dotenv import load_dotenv
 
-# load .env once at start-up (for TMDB_API_KEY)
-load_dotenv()
+# Try loading .env from project root if env var not set
+if not os.getenv("TMDB_API_KEY"):
+    load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 # ───────────────────────── internal imports ──────────────────────────
 from .core import scan, markdown, metadata, rename, links, paths
