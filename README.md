@@ -11,7 +11,7 @@ Manage, rename, and catalogue your movie collection from the command-line.
 | **Mover** | Recursively gathers videos from a “Downloads” folder and flattens them into your library—duplicates are auto-prefixed with `[DUP]`. |
 | **Markdown note generator** | Pulls metadata from TMDb and creates a clean note for every movie (synopsis, runtime, genres, poster URL, cast, “More Like This”, etc.). |
 | **YTS link builder** | Generates download links for the movies you own—or for recommended titles you don’t own yet. |
-| **XDG-compliant cache** | All runtime files live in `~/.local/state/zel/zelmedia/`; the wheel itself remains read-only. |
+| **XDG-compliant cache** | Runtime files live in `~/.local/state/zel/`; the wheel itself remains read-only. |
 
 ZelMedia is one member of the **Zel-suite** (`zeltimer`, `zeljournal`, `zeltask`…)
 but works perfectly on its own.
@@ -25,7 +25,7 @@ but works perfectly on its own.
 pip install zelmedia
 
 # development install from source
-git clone https://github.com/<user>/zelmedia.git
+git clone https://github.com/Zeldean/zelmedia.git
 cd zelmedia
 pip install -e .
 ````
@@ -57,6 +57,9 @@ zelmedia yts-links > links.txt
 zelmedia rec-links -o recs.md
 ```
 
+> Tip: Pair ZelMedia with `zelutil path set media …` so other Zel tools can
+> discover the same library location.
+
 ---
 
 ## 4  Commands in detail
@@ -75,13 +78,14 @@ zelmedia rec-links -o recs.md
 ## 5  State / cache layout
 
 ```
-~/.local/state/zel/zelmedia/
+~/.local/state/zel/
     paths.json              # remembered source / destination folders
     metadata.cache.json     # TMDb payloads
 ```
 
 The directory is created on first run; edit or delete files freely—ZelMedia
-will regenerate them.
+will regenerate them. `paths.json` is shared with the rest of the Zel suite via
+ZelCandy.
 
 ---
 
@@ -98,7 +102,7 @@ will regenerate them.
 
 ```bash
 # activate your pyenv environment
-pyenv shell zelcandy          # example env
+pyenv shell zelutil          # example env
 
 # install in editable mode with test deps
 pip install -e .[dev]
