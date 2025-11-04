@@ -1,6 +1,15 @@
 # ZelMedia 📼  
 Manage, rename, and catalogue your movie collection from the command-line.
 
+## Getting Started
+
+**First, install the Zel ecosystem:**
+```bash
+curl -sSL https://raw.githubusercontent.com/Zeldean/zelutil/main/bootstrap-zel.py | python3
+```
+
+This sets up ZelUtil and makes all Zel tools available. See the [ZelUtil repository](https://github.com/Zeldean/zelutil) for details.
+
 ---
 
 ## 1  What is ZelMedia?
