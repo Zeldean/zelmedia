@@ -73,6 +73,16 @@ def clean_cmd(folder: str) -> None:
     rename.clean_movie_names(Path(folder))
 
 
+# ─────────────────────── series-rename ──────────────────────
+@movie.command("series-rename")
+@click.option("-n", "--name", required=True, help="Base series name (e.g., 'Example Show')")
+@click.option("--dry-run", is_flag=True, help="Preview changes without executing")
+@click.argument("folder", type=click.Path(exists=True, file_okay=False))
+def series_rename_cmd(name: str, dry_run: bool, folder: str) -> None:
+    """Rename series files → Base_Name_S01E05.ext"""
+    rename.clean_series_names(Path(folder), name, dry_run)
+
+
 # ───────────────────────── move files ───────────────────────
 @movie.command("move")
 @click.argument("src", required=False, type=click.Path(exists=True, file_okay=False))
