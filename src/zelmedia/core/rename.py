@@ -121,6 +121,101 @@ def clean_movie_names(folder: Path) -> None:
             log.debug("%s → %s", file_path.name, new_path.name)
             file_path.rename(new_path)
 
+
+# ─────────────────────────── series renaming ─────────────────────────────
+EPISODE_PATTERN = re.compile(r"S(\d+)E(\d+)(?:-E(\d+))?", re.IGNORECASE)
+SEASON_FOLDER_PATTERN = re.compile(r"(?:season|s)[\s_]*(\d+)$", re.IGNORECASE)
+
+
+def extract_season_episode(filename: str, folder_season: int = None) -> dict | None:
+    """Extract season/episode info from filename. Returns dict or None."""
+    match = EPISODE_PATTERN.search(filename)
+    if not match:
+        return None
+    
+    season = int(match.group(1)) if match.group(1) else folder_season
+    episode = int(match.group(2))
+    end_episode = int(match.group(3)) if match.group(3) else None
+    
+    return {
+        "season": season,
+        "episode": episode,
+        "end_episode": end_episode,
+        "is_range": end_episode is not None
+    }
+
+
+def is_season_folder(folder_name: str) -> int | None:
+    """Return season number if folder is a season folder, None otherwise."""
+    if folder_name.lower() in ("specials", "extras", "behind the scenes"):
+        return None
+    
+    match = SEASON_FOLDER_PATTERN.search(folder_name)
+    return int(match.group(1)) if match else None
+
+
+def build_series_name(original: Path, base_name: str, season: int = None) -> Path:
+    """Convert series file to clean format: Base_Name_S01E05.ext"""
+    stem = original.stem
+    ep_info = extract_season_episode(stem, season)
+    
+    if not ep_info:
+        log.warning("Could not extract episode info from %s - leaving unchanged", original.name)
+        return original
+    
+    # Clean base name (spaces to underscores)
+    clean_base = re.sub(r"\s+", "_", base_name.strip())
+    
+    # Build episode part
+    s_num = ep_info["season"] or 1
+    e_num = ep_info["episode"]
+    
+    if ep_info["is_range"]:
+        ep_part = f"S{s_num:02d}E{e_num:02d}-E{ep_info['end_episode']:02d}"
+    else:
+        ep_part = f"S{s_num:02d}E{e_num:02d}"
+    
+    new_name = f"{clean_base}_{ep_part}{original.suffix}"
+    return original.with_name(new_name)
+
+
+def clean_series_names(root: Path, base_name: str, dry_run: bool = False) -> None:
+    """Rename series files in root directory, handling season folders."""
+    log.info("Cleaning series names for '%s'…", base_name)
+    
+    # Check for season folders
+    season_folders = {}
+    files_to_process = []
+    
+    for item in root.iterdir():
+        if item.is_dir():
+            season_num = is_season_folder(item.name)
+            if season_num is not None:
+                season_folders[season_num] = item
+        elif item.suffix.lower() in VIDEO_EXTS or item.suffix.lower() == ".ogv":
+            files_to_process.append((item, None))  # (file, season)
+    
+    # Process season folders
+    for season_num, folder in season_folders.items():
+        for file_path in folder.iterdir():
+            if file_path.suffix.lower() in VIDEO_EXTS or file_path.suffix.lower() == ".ogv":
+                files_to_process.append((file_path, season_num))
+    
+    if not files_to_process:
+        log.warning("No video files found")
+        return
+    
+    # Process all files
+    for file_path, season in tqdm(files_to_process, desc="Renaming series", unit="file"):
+        new_path = build_series_name(file_path, base_name, season)
+        
+        if new_path.name != file_path.name:
+            log.debug("%s → %s", file_path.name, new_path.name)
+            if not dry_run:
+                file_path.rename(new_path)
+            else:
+                print(f"Would rename: {file_path.name} → {new_path.name}")
+
 # ───────────────────────────── self-test (20 cases) ─────────────────────────────
 # Run with:  python path/to/this_file.py
 TEST_CASES: list[tuple[str, str]] = [
