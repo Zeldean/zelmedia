@@ -10,7 +10,7 @@ description = "CLI to organise movies and emit Markdown notes."
 authors = [{ name = "Zeldean" }]
 readme = "README.md"
 requires-python = ">=3.9"
-license = { file = "LICENSE" }  # changed from 'text' to 'file' (recommended)
+license = { file = "LICENSE" }
 keywords = ["cli", "movies", "markdown", "tmdb"]
 classifiers = [
     "License :: OSI Approved :: MIT License",

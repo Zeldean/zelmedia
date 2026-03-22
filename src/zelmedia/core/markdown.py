@@ -5,7 +5,17 @@ def year_from(date: str | None) -> int | str:
     return datetime.datetime.fromisoformat(date).year if date else "????"
 
 def stem(title: str, year) -> str:
-    return f"{title.replace(' ', '_')}_({year})"
+    clean_title = f"{title
+        .replace("*", "")
+        .replace(' ', '_')
+        .replace(':', '')
+        .replace("'", '')
+        .replace('"', '')
+        .replace('/', '')
+        .replace('\\', '')
+        .replace(';', '')
+    }"
+    return f"{clean_title}_({year})"
 
 def pretty(title: str, year) -> str:
     return f"{title} ({year})"
@@ -22,12 +32,10 @@ def save_markdown(movie: dict, meta: dict, out_dir="notes") -> Path:
         ],
         "title": pretty(movie['title'], movie['year']),
         "yearReleased": movie['year'],
-        "imdbID": meta['imdb'],
+        # "imdbID": meta['imdb'],
         "runtime": meta['runtime'],
         "genres": meta['genres'],
         "poster": meta['poster'],
-        "status": "owned",
-        "fileName": Path(movie['file']).name,
     }
     yaml_block = yaml.safe_dump(front, sort_keys=False, allow_unicode=True)
 
